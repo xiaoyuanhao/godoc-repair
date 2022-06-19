@@ -128,7 +128,7 @@ go install github.com/xiaoyuanhao/godoc-repair
 After installed, use the command to repair.
 ```
 go-repair --code-path /path/to/your/code
-// example: go-repare --code-path ./example --auto-description
+// example: go-repair --code-path ./example --auto-description
 ```
 support flag:
 * --format, overwrite the default comment format.

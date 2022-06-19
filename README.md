@@ -4,44 +4,132 @@
 
 ## Overview
 
-`godoc-generate` is a simple command line tool that generates default godoc comments on all **exported** `types`, `functions`, `consts` and `vars` in the current working directory and recursively for all subdirectories.
+`godoc-repair` is forked from [DimitarPetrov/godoc-generate](https://github.com/DimitarPetrov/godoc-generate)
 
-The godoc comments looks like this:
+`godoc-repair` is a simple command line tool that repairs godoc comments and generates default godoc comments on all
+ **exported** `types`, `functions`, `consts` and `vars` in the specified directory and recursively for all subdirectories.
 
+## Explain
+* It is necessary to write comments well.
+* Tool will only fix some types of comments.
+* It is recommended to check the comments after repaired.
+
+## Types
+The following comments will be fixed, include type/func/const/var：
+
+### missing name
+
+before repair
+```go
+// camel case
+type CamelCase struct {
+}
 ```
+
+after repair
+```go
+// CamelCase camel case
+type CamelCase struct {
+}
+```
+
+### missing description
+
+before repair
+```go
+// CamelCase
+type CamelCase struct {
+}
+
+//CamelCase2
+type CamelCase2 struct {
+}
+```
+
+after repair
+```go
+// CamelCase camel case
+type CamelCase struct {
+}
+
+// CamelCase2 camel case
+type CamelCase2 struct {
+}
+```
+
+### with a colon
+
+before repair
+```go
+// CamelCase: camel case
+type CamelCase struct {
+}
+
+//CamelCase2: camel case
+type CamelCase2 struct {
+}
+```
+
+after repair
+```go
+// CamelCase camel case
+type CamelCase struct {
+}
+
+// CamelCase2 camel case
+type CamelCase2 struct {
+}
+```
+
+### missing comment
+The repaired godoc comments looks like this:
+```go
 // %s missing godoc.
 ```
-
-Where `%s` is the name of the type/func/const/var.
+Where %s is the name of the type/func/const/var.
 
 > NOTE: The comment format can be overridden via the `--format` flag.
+
+before repair
+```go
+type CamelCase struct {
+}
+```
+
+after repair
+```go
+// CamelCase missing godoc
+type CamelCase struct {
+}
+```
+
+`go-repair` will add automatically comment description if enable auto description.
+before repair
+```go
+type CamelCase struct {
+}
+```
+
+after repair
+```go
+// CamelCase camel case
+type CamelCase struct {
+}
+```
 
 ## Installation
 
 #### Installing from Source
 ```
-go install github.com/DimitarPetrov/godoc-generate@latest
+go install github.com/xiaoyuanhao/godoc-repair@latest
 ```
 
-## Demonstration
-
-Let's say you have a simple `Multiply` function without `godoc`:
-
-```go
-func Multiply(a,b int) int {
-	return a * b
-}
+#### Usage
+After installed, use the command to repair.
 ```
-
-It is exported, therefore it is part of the package's interface. It is ideomatic to add godoc on everything exported in your package.
-
-If you run `godoc-genenrate` the code will be rewritten the following way:
-
-```go
-// Multiply missing godoc.
-func Multiply(a, b int) int {
-	return a * b
-}
+go-repair --code-path /path/to/your/code
 ```
-
-This way you are safe to add a linter enforcing godoc and migrate all legacy code gradually.
+support flag:
+* --format, overwrite the default comment format.
+* --code-path, code path needs to be repaired, default is the current working directory.
+* --auto-description, set comment description with function name.

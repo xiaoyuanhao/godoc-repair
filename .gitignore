@@ -1,3 +1,17 @@
+.cache/
+.idea/
+.vscode/
+release/
+data/
+log/
+__pycache__/
+*.sqlite
+
+cmd/model-server/tools/errno-gen/errno-gen
+
+# Mac OS X files
+.DS_Store
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -5,11 +19,22 @@
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
+# Test binary, build with `go test -c`
 *.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
+.glide/
+
+# Dependency directories
+vendor/
+
+# vscode
+.vscode/
+
+output/
+
+# idea ide
+.idea/

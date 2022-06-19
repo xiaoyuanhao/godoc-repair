@@ -12,29 +12,44 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 )
 
-const defaultGodocCommentFormat = "// %s missing godoc."
+const (
+	defaultCommentFormat  = "// %s missing godoc."
+	autoDescriptionFormat = "// %s %s"
+)
 
-var godocCommentFormat string
+var (
+	commentFormat   string
+	codePath        string
+	autoDescription bool
+)
 
 func init() {
-	flag.StringVar(&godocCommentFormat, "format", defaultGodocCommentFormat, "comment format")
+	flag.StringVar(&commentFormat, "format", defaultCommentFormat, "comment format")
+	flag.StringVar(&codePath, "code-path", "", "code path")
+	flag.BoolVar(&autoDescription, "auto-description", false, "enable auto description")
 	flag.Parse()
 }
 
 func main() {
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("error getting current working directory: %v", err)
+	// get the current working directory if code path is empty
+	if codePath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			log.Fatalf("error getting current working directory: %v", err)
+		}
+		codePath = wd
 	}
+	log.Print(fmt.Sprintf("Adding default go doc to each exported type/func recursively in %s", codePath))
 
-	log.Print(fmt.Sprintf("Adding default go doc to each exported type/func recursively in %s", wd))
-
-	if err := mapDirectory(wd, instrumentDir); err != nil {
+	//
+	if err := mapDirectory(codePath, instrumentDir); err != nil {
 		log.Fatalf("error while instrumenting current working directory: %v", err)
 	}
 }
@@ -81,21 +96,15 @@ func instrumentFile(fset *token.FileSet, file *ast.File, out io.Writer) error {
 	dst.Inspect(f, func(n dst.Node) bool {
 		switch t := n.(type) {
 		case *dst.FuncDecl:
-			if t.Name.IsExported() && !containsGoDoc(t.Decs.Start.All(), t.Name.Name) {
-				t.Decs.Start.Prepend(fmt.Sprintf(godocCommentFormat, t.Name.Name))
-			}
+			t.Decs.Start = autoDecl(t.Name, t.Decs.Start)
 		case *dst.GenDecl:
 			if len(t.Specs) == 1 {
 				switch s := t.Specs[0].(type) {
 				case *dst.TypeSpec:
-					if s.Name.IsExported() && !containsGoDoc(t.Decs.Start.All(), s.Name.Name) {
-						t.Decs.Start.Prepend(fmt.Sprintf(godocCommentFormat, s.Name.Name))
-					}
+					t.Decs.Start = autoDecl(s.Name, t.Decs.Start)
 					return true
 				case *dst.ValueSpec:
-					if s.Names[0].IsExported() && !containsGoDoc(t.Decs.Start.All(), s.Names[0].Name) {
-						t.Decs.Start.Prepend(fmt.Sprintf(godocCommentFormat, s.Names[0].Name))
-					}
+					t.Decs.Start = autoDecl(s.Names[0], t.Decs.Start)
 					return true
 				default:
 					return true
@@ -104,13 +113,9 @@ func instrumentFile(fset *token.FileSet, file *ast.File, out io.Writer) error {
 			for _, spec := range t.Specs {
 				switch s := spec.(type) {
 				case *dst.TypeSpec:
-					if s.Name.IsExported() && !containsGoDoc(s.Decs.Start.All(), s.Name.Name) {
-						s.Decs.Start.Prepend(fmt.Sprintf(godocCommentFormat, s.Name.Name))
-					}
+					s.Decs.Start = autoDecl(s.Name, s.Decs.Start)
 				case *dst.ValueSpec:
-					if s.Names[0].IsExported() && !containsGoDoc(s.Decs.Start.All(), s.Names[0].Name) {
-						s.Decs.Start.Prepend(fmt.Sprintf(godocCommentFormat, s.Names[0].Name))
-					}
+					s.Decs.Start = autoDecl(s.Names[0], s.Decs.Start)
 				}
 			}
 		}
@@ -119,13 +124,82 @@ func instrumentFile(fset *token.FileSet, file *ast.File, out io.Writer) error {
 	return decorator.Fprint(out, f)
 }
 
-func containsGoDoc(decs []string, name string) bool {
-	for _, dec := range decs {
-		if strings.HasPrefix(dec, "// "+name) || strings.HasPrefix(dec, "//"+name) {
-			return true
+func autoDecl(ident *dst.Ident, decorations dst.Decorations) dst.Decorations {
+	if !ident.IsExported() {
+		return decorations
+	}
+
+	doc := fmt.Sprintf(defaultCommentFormat, ident.Name)
+	if autoDescription {
+		doc = fmt.Sprintf(autoDescriptionFormat, ident.Name, mockDoc(ident.Name))
+	}
+	empty, emptyName, justName := containsGoDoc(decorations.All(), ident.Name)
+	if empty {
+		decorations.Prepend(doc)
+	}
+	if emptyName {
+		all := decorations.All()
+		first := all[0]
+		first = trimPrefix(first, ident.Name)
+		first = fmt.Sprintf("// %s %s", ident.Name, first)
+		all[0] = first
+		decorations.Replace(all...)
+	}
+	if justName {
+		all := decorations.All()
+		all[0] = doc
+		decorations.Replace(all...)
+	}
+	return decorations
+}
+
+// return (empty, emptyName, justName)
+func containsGoDoc(decs []string, name string) (bool, bool, bool) {
+	if len(decs) == 0 {
+		return true, false, false
+	}
+	first := decs[0]
+	if first == fmt.Sprintf("// %s", name) {
+		return false, false, true
+	}
+	if !strings.HasPrefix(first, fmt.Sprintf("// %s ", name)) {
+		return false, true, false
+	}
+	return false, false, false
+}
+
+func trimPrefix(doc, name string) string {
+	cases := []string{
+		// trim '//Name '
+		fmt.Sprintf("//%s ", name),
+		// trim '// Name: '
+		fmt.Sprintf("// %s: ", name),
+		// trim '// Name:'
+		fmt.Sprintf("// %s:", name),
+		// trim '//Name: '
+		fmt.Sprintf("//%s: ", name),
+		// trim '//Name:'
+		fmt.Sprintf("//%s:", name),
+		// trim '// '
+		fmt.Sprintf("// "),
+		// trim '//'
+		fmt.Sprintf("//"),
+	}
+	for _, c := range cases {
+		if strings.HasPrefix(doc, c) {
+			return strings.TrimPrefix(doc, c)
 		}
 	}
-	return false
+	return doc
+}
+
+// mock doc, split the Name to single word
+func mockDoc(name string) string {
+	results := Split(name)
+	for i, r := range results {
+		results[i] = strings.ToLower(r)
+	}
+	return strings.Join(results, " ")
 }
 
 // Filter excluding go test files from directory
@@ -173,4 +247,50 @@ func mapDirectory(dir string, operation func(string) error) error {
 			}
 			return nil
 		})
+}
+
+// Split missing godoc.
+func Split(src string) (entries []string) {
+	// don't split invalid utf8
+	if !utf8.ValidString(src) {
+		return []string{src}
+	}
+	entries = []string{}
+	var runes [][]rune
+	lastClass := 0
+	class := 0
+	// split into fields based on class of unicode character
+	for _, r := range src {
+		switch true {
+		case unicode.IsLower(r):
+			class = 1
+		case unicode.IsUpper(r):
+			class = 2
+		case unicode.IsDigit(r):
+			class = 3
+		default:
+			class = 4
+		}
+		if class == lastClass {
+			runes[len(runes)-1] = append(runes[len(runes)-1], r)
+		} else {
+			runes = append(runes, []rune{r})
+		}
+		lastClass = class
+	}
+	// handle upper case -> lower case sequences, e.g.
+	// "PDFL", "oader" -> "PDF", "Loader"
+	for i := 0; i < len(runes)-1; i++ {
+		if unicode.IsUpper(runes[i][0]) && unicode.IsLower(runes[i+1][0]) {
+			runes[i+1] = append([]rune{runes[i][len(runes[i])-1]}, runes[i+1]...)
+			runes[i] = runes[i][:len(runes[i])-1]
+		}
+	}
+	// construct []string from results
+	for _, s := range runes {
+		if len(s) > 0 {
+			entries = append(entries, string(s))
+		}
+	}
+	return
 }

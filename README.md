@@ -121,7 +121,7 @@ type CamelCase struct {
 
 #### Installing from Source
 ```
-go install github.com/xiaoyuanhao/godoc-repair@latest
+go install github.com/xiaoyuanhao/godoc-repair
 ```
 
 #### Usage

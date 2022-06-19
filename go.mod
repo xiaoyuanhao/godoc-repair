@@ -1,4 +1,4 @@
-module github.com/DimitarPetrov/godoc-generate
+module github.com/xiaoyuanhao/godoc-repair
 
 go 1.17
 

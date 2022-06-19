@@ -104,6 +104,7 @@ type CamelCase struct {
 ```
 
 `go-repair` will add automatically comment description if enable auto description.
+
 before repair
 ```go
 type CamelCase struct {

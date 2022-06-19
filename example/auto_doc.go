@@ -20,6 +20,6 @@ func (n *CamelCaseStruct) CamelCaseFunc() {
 
 }
 
-//CamelCaseInterface
+// CamelCaseInterface
 type CamelCaseInterface interface {
 }

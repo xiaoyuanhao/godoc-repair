@@ -159,7 +159,7 @@ func containsGoDoc(decs []string, name string) (bool, bool, bool) {
 		return true, false, false
 	}
 	first := decs[0]
-	if first == fmt.Sprintf("// %s", name) {
+	if first == fmt.Sprintf("// %s", name) || first == fmt.Sprintf("//%s", name) {
 		return false, false, true
 	}
 	if !strings.HasPrefix(first, fmt.Sprintf("// %s ", name)) {

@@ -33,30 +33,6 @@ type CamelCase struct {
 }
 ```
 
-### missing description
-
-before repair
-```go
-// CamelCase
-type CamelCase struct {
-}
-
-//CamelCase2
-type CamelCase2 struct {
-}
-```
-
-after repair
-```go
-// CamelCase camel case
-type CamelCase struct {
-}
-
-// CamelCase2 camel case
-type CamelCase2 struct {
-}
-```
-
 ### with a colon
 
 before repair
@@ -98,7 +74,7 @@ type CamelCase struct {
 
 after repair
 ```go
-// CamelCase missing godoc
+// CamelCase missing godoc.
 type CamelCase struct {
 }
 ```
@@ -115,6 +91,55 @@ after repair
 ```go
 // CamelCase camel case
 type CamelCase struct {
+}
+```
+
+### missing description
+As default.
+
+before repair
+```go
+// CamelCase
+type CamelCase struct {
+}
+
+//CamelCase2
+type CamelCase2 struct {
+}
+```
+
+after repair
+```go
+// CamelCase missing godoc. 
+type CamelCase struct {
+}
+
+// CamelCase2 missing godoc.
+type CamelCase2 struct {
+}
+```
+
+The same to "missing comment", it will add automatically comment description if enable auto description.
+
+before repair
+```go
+// CamelCase
+type CamelCase struct {
+}
+
+//CamelCase2
+type CamelCase2 struct {
+}
+```
+
+after repair
+```go
+// CamelCase camel case
+type CamelCase struct {
+}
+
+// CamelCase2 camel case
+type CamelCase2 struct {
 }
 ```
 

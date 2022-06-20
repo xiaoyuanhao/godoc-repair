@@ -1,6 +1,6 @@
 # godoc-generate
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/DimitarPetrov/godoc-generate)](https://goreportcard.com/report/github.com/DimitarPetrov/godoc-generate)
+[![Go Report Card](https://goreportcard.com/report/github.com/xiaoyuanhao/godoc-repair)](https://goreportcard.com/report/github.com/xiaoyuanhao/godoc-repair)
 
 ## Overview
 

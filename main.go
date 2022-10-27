@@ -129,7 +129,7 @@ func autoDecl(ident *dst.Ident, decorations dst.Decorations) dst.Decorations {
 		return decorations
 	}
 
-	doc := fmt.Sprintf(defaultCommentFormat, ident.Name)
+	doc := fmt.Sprintf(commentFormat, ident.Name)
 	if autoDescription {
 		doc = fmt.Sprintf(autoDescriptionFormat, ident.Name, mockDoc(ident.Name))
 	}

@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -48,10 +49,16 @@ func main() {
 	}
 	log.Print(fmt.Sprintf("Adding default go doc to each exported type/func recursively in %s", codePath))
 
-	//
-	if err := mapDirectory(codePath, instrumentDir); err != nil {
-		log.Fatalf("error while instrumenting current working directory: %v", err)
+	if IsDir(codePath) == true {
+		if err := mapDirectory(codePath, instrumentDir); err != nil {
+			log.Fatalf("error while instrumenting current working directory: %v", err)
+		}
+	} else {
+		if err := mapFilePath(codePath, instrumentFile); err != nil {
+			log.Fatalf("error while instrumenting current file: %v", err)
+		}
 	}
+
 }
 
 func instrumentDir(path string) error {
@@ -249,7 +256,30 @@ func mapDirectory(dir string, operation func(string) error) error {
 		})
 }
 
-// Split missing godoc.
+func mapFilePath(filePath string, operation func(*token.FileSet, *ast.File, io.Writer) error) error {
+	filenameall := path.Base(filePath)
+	filesuffix := path.Ext(filePath)
+	fileprefix := filenameall[0 : len(filenameall)-len(filesuffix)]
+	if fileprefix == "vendor" {
+		return filepath.SkipDir
+	}
+	if !IsDir(filePath) {
+		fset := token.NewFileSet()
+		// src := getFileContent(filePath)
+		file, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+		if err != nil {
+			return fmt.Errorf("failed parsing go file %s: %v", codePath, err)
+		}
+		sourceFile, err := os.OpenFile(codePath, os.O_TRUNC|os.O_WRONLY, 0664)
+		if err != nil {
+			return fmt.Errorf("failed opening file %s: %v", codePath, err)
+		}
+		return operation(fset, file, sourceFile)
+	}
+	return nil
+}
+
+// Split split
 func Split(src string) (entries []string) {
 	// don't split invalid utf8
 	if !utf8.ValidString(src) {
@@ -293,4 +323,15 @@ func Split(src string) (entries []string) {
 		}
 	}
 	return
+}
+
+// IsDir judge dir
+func IsDir(path string) bool {
+	s, err := os.Stat(path)
+	if err != nil {
+
+		return false
+	}
+	return s.IsDir()
+
 }
